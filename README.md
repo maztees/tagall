@@ -87,5 +87,5 @@ containing `BOT_TOKEN=...`, then run `bash deploy/setup.sh`.
 
 ## License
 
-Released into the public domain under [The Unlicense](LICENSE).
-Use it for anything, no restrictions, no attribution required.
+[MIT](LICENSE) — free to use, modify, and redistribute for any purpose;
+just keep the copyright notice with copies.
