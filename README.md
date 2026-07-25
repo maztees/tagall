@@ -73,7 +73,7 @@ Then download this project:
   page → **Download ZIP** → unzip it anywhere.
 - **Git way:**
   ```bash
-  git clone https://github.com/YOUR-USERNAME/tagall.git
+  git clone https://github.com/maztees/tagall.git
   cd tagall
   ```
 
