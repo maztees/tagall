@@ -5,3 +5,4 @@ venv/
 .env
 members.db
 *.db
+*.png
