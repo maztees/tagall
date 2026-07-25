@@ -6,3 +6,5 @@ venv/
 members.db
 *.db
 *.png
+TAGALL_PLAN.md
+CLAUDE.md
