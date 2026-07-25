@@ -34,6 +34,10 @@ log = logging.getLogger("tagall")
 DB_PATH = os.environ.get("TAGALL_DB", "members.db")
 ADMINS_ONLY = os.environ.get("TAGALL_ADMINS_ONLY", "").lower() in ("1", "true", "yes")
 
+# "out" (default): members are tagged only after they opt in with /tagme.
+# "in": everyone the bot knows is tagged unless they opt out with /untagme.
+DEFAULT_OPT_IN = os.environ.get("TAGALL_DEFAULT", "out").lower() in ("in", "1", "true", "yes")
+
 # Telegram only notifies a handful of mentions per message, and groups are
 # rate-limited to roughly 20 bot messages per minute, so we tag in batches.
 MENTIONS_PER_MESSAGE = 5
@@ -55,10 +59,15 @@ def db() -> sqlite3.Connection:
             user_id    INTEGER NOT NULL,
             username   TEXT,
             first_name TEXT,
+            opted      INTEGER,
             PRIMARY KEY (chat_id, user_id)
         )
         """
     )
+    try:
+        conn.execute("ALTER TABLE members ADD COLUMN opted INTEGER")
+    except sqlite3.OperationalError:
+        pass  # column already exists
     return conn
 
 
@@ -67,9 +76,22 @@ def remember(chat_id: int, user: User) -> None:
         return
     with db() as conn:
         conn.execute(
-            "INSERT OR REPLACE INTO members (chat_id, user_id, username, first_name)"
-            " VALUES (?, ?, ?, ?)",
+            """
+            INSERT INTO members (chat_id, user_id, username, first_name)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (chat_id, user_id) DO UPDATE
+            SET username = excluded.username, first_name = excluded.first_name
+            """,
             (chat_id, user.id, user.username, user.first_name),
+        )
+
+
+def set_opt(chat_id: int, user: User, opted_in: bool) -> None:
+    remember(chat_id, user)
+    with db() as conn:
+        conn.execute(
+            "UPDATE members SET opted = ? WHERE chat_id = ? AND user_id = ?",
+            (1 if opted_in else 0, chat_id, user.id),
         )
 
 
@@ -81,10 +103,17 @@ def forget(chat_id: int, user_id: int) -> None:
         )
 
 
-def known_members(chat_id: int) -> list[tuple[int, str, str]]:
+def taggable_members(chat_id: int) -> list[tuple[int, str, str]]:
+    """Members to mention, honouring each person's opt-in/opt-out choice.
+
+    `opted` is NULL until someone explicitly chooses; those undecided members
+    follow the group default (DEFAULT_OPT_IN).
+    """
+    condition = "(opted = 1 OR opted IS NULL)" if DEFAULT_OPT_IN else "opted = 1"
     with db() as conn:
         rows = conn.execute(
-            "SELECT user_id, username, first_name FROM members WHERE chat_id = ?",
+            "SELECT user_id, username, first_name FROM members"
+            f" WHERE chat_id = ? AND {condition}",
             (chat_id,),
         ).fetchall()
     return rows
@@ -150,12 +179,18 @@ async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except TelegramError as exc:
         log.warning("Could not fetch admins for chat %s: %s", chat.id, exc)
 
-    targets = [row for row in known_members(chat.id) if row[0] != sender.id]
+    targets = [row for row in taggable_members(chat.id) if row[0] != sender.id]
     if not targets:
-        await msg.reply_text(
-            "I don't know anyone here yet. I learn members as they send "
-            "messages, so try again once people have been active."
-        )
+        if DEFAULT_OPT_IN:
+            await msg.reply_text(
+                "I don't know anyone here yet. I learn members as they send "
+                "messages, so try again once people have been active."
+            )
+        else:
+            await msg.reply_text(
+                "Nobody has opted in to being tagged yet. Members who want "
+                "to be included in @everyone should send /tagme."
+            )
         return
 
     # If the trigger was a reply to a shared message, attach the mentions to
@@ -182,13 +217,40 @@ async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
 
 
+async def opt_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if user is None or user.is_bot:
+        return
+    set_opt(update.effective_chat.id, user, True)
+    await update.effective_message.reply_text(
+        f"Done, {user.first_name} — you'll be tagged in @everyone. "
+        "Send /untagme any time to opt out."
+    )
+
+
+async def opt_out(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if user is None or user.is_bot:
+        return
+    set_opt(update.effective_chat.id, user, False)
+    await update.effective_message.reply_text(
+        f"Okay, {user.first_name} — you won't be tagged in @everyone. "
+        "Send /tagme any time to opt back in."
+    )
+
+
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    default_note = (
+        "Everyone I know is tagged unless they send /untagme."
+        if DEFAULT_OPT_IN
+        else "Tagging is opt-in: only members who have sent /tagme are tagged."
+    )
     await update.effective_message.reply_text(
         "Add me to a group, then say @everyone or @tagall (or use /tagall) "
-        "to mention all members I know about.\n\n"
-        "Bots cannot read a group's full member list, so I learn members as "
-        "they send messages or join. People who have never been active since "
-        "I joined will not be tagged."
+        "to mention members.\n\n"
+        f"{default_note}\n"
+        "/tagme — include me in @everyone\n"
+        "/untagme — leave me out of @everyone"
     )
 
 
@@ -208,6 +270,12 @@ def main() -> None:
         )
     )
     app.add_handler(
+        CommandHandler(["tagme", "optin"], opt_in, filters=filters.ChatType.GROUPS)
+    )
+    app.add_handler(
+        CommandHandler(["untagme", "optout"], opt_out, filters=filters.ChatType.GROUPS)
+    )
+    app.add_handler(
         MessageHandler(
             filters.ChatType.GROUPS
             & (filters.Regex(TRIGGER) | filters.CaptionRegex(TRIGGER)),
@@ -219,7 +287,11 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.ChatType.GROUPS, track), group=1)
     app.add_handler(ChatMemberHandler(on_chat_member, ChatMemberHandler.CHAT_MEMBER))
 
-    log.info("Tagall bot starting (admins only: %s)", ADMINS_ONLY)
+    log.info(
+        "Tagall bot starting (default: %s, admins only: %s)",
+        "opt-out" if DEFAULT_OPT_IN else "opt-in",
+        ADMINS_ONLY,
+    )
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 

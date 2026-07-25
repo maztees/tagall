@@ -58,9 +58,16 @@ receive join/leave updates, which keeps the member list accurate.
 
 | Trigger | Effect |
 |---|---|
-| `@everyone` or `@tagall` anywhere in a message | tags all known members |
+| `@everyone` or `@tagall` anywhere in a message | tags all opted-in members |
 | `/tagall`, `/all`, `/everyone` | same, as a command |
 | reply to a message + `@everyone` | mentions are attached to that message |
+| `/tagme` (or `/optin`) | include me when @everyone is used |
+| `/untagme` (or `/optout`) | leave me out of @everyone |
+
+Tagging is **opt-in by default**: only members who have sent `/tagme` in the
+group are mentioned, and anyone can leave the list again with `/untagme`.
+Group owners who prefer the opposite (everyone tagged unless they opt out)
+can run the bot with `TAGALL_DEFAULT=in`.
 
 ## Configuration (environment variables)
 
@@ -69,6 +76,7 @@ receive join/leave updates, which keeps the member list accurate.
 | `BOT_TOKEN` | *(required)* | token from @BotFather |
 | `TAGALL_DB` | `members.db` | path of the SQLite file storing known members |
 | `TAGALL_ADMINS_ONLY` | off | set to `1` to let only group admins trigger a tag |
+| `TAGALL_DEFAULT` | `out` | `out` = members must `/tagme` to be tagged (opt-in); `in` = everyone is tagged unless they `/untagme` (opt-out) |
 
 The bot must stay running to work — host it on any always-on machine
 (a Raspberry Pi, a $5 VPS, a free-tier cloud VM, etc.).
