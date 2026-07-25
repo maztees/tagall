@@ -81,6 +81,10 @@ can run the bot with `TAGALL_DEFAULT=in`.
 The bot must stay running to work — host it on any always-on machine
 (a Raspberry Pi, a $5 VPS, a free-tier cloud VM, etc.).
 
+For a Linux server with systemd, `deploy/` has a ready-made unit file and
+installer: copy the project to `/root/tagall/`, create `/root/tagall/.env`
+containing `BOT_TOKEN=...`, then run `bash deploy/setup.sh`.
+
 ## License
 
 Released into the public domain under [The Unlicense](LICENSE).

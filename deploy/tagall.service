@@ -1,0 +1,14 @@
+[Unit]
+Description=Tagall Telegram bot (@tagusall_bot)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/root/tagall
+EnvironmentFile=/root/tagall/.env
+ExecStart=/root/tagall/.venv/bin/python bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
