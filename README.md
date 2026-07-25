@@ -25,6 +25,20 @@ name-link mention so they still get notified.
 
 ## Setup
 
+You need: a computer that stays on while the bot runs, and
+[Python 3.10 or newer](https://www.python.org/downloads/) installed
+(on Windows, tick "Add Python to PATH" during installation).
+
+### 0. Get the code
+
+Click the green **Code** button at the top of this GitHub page →
+**Download ZIP**, then unzip it anywhere. Or, if you have git:
+
+```bash
+git clone https://github.com/YOUR-USERNAME/tagall.git
+cd tagall
+```
+
 ### 1. Create a bot
 
 1. Open [@BotFather](https://t.me/BotFather) in Telegram and send `/newbot`.
@@ -32,6 +46,15 @@ name-link mention so they still get notified.
 3. Send `/setprivacy` to BotFather, select your bot, and choose **Disable**.
    This is required so the bot can see normal group messages (to spot
    `@everyone` and to learn who the members are).
+4. Optional but recommended: send `/setcommands` to BotFather, select your
+   bot, and paste this block so members see the commands when typing `/`:
+
+   ```
+   tagall - Tag all opted-in members
+   tagme - Include me in @everyone
+   untagme - Leave me out of @everyone
+   help - How this bot works
+   ```
 
 ### 2. Run the bot
 
@@ -84,6 +107,21 @@ The bot must stay running to work — host it on any always-on machine
 For a Linux server with systemd, `deploy/` has a ready-made unit file and
 installer: copy the project to `/root/tagall/`, create `/root/tagall/.env`
 containing `BOT_TOKEN=...`, then run `bash deploy/setup.sh`.
+
+## Troubleshooting
+
+- **The bot ignores `@everyone` completely** — privacy mode is still on.
+  Send `/setprivacy` to @BotFather, pick your bot, choose **Disable**, then
+  remove the bot from the group and add it back.
+- **"Nobody has opted in to being tagged yet"** — working as intended:
+  members must send `/tagme` in the group once before they get tagged.
+- **Commands don't autocomplete when typing `/`** — register them with
+  BotFather via `/setcommands` (list in the Setup section is a good start).
+- **`Conflict: terminated by other getUpdates request`** in the logs — the
+  bot is running twice (e.g. on your PC *and* a server). Stop one copy.
+- **Bot stopped responding after I closed the terminal** — the bot only
+  works while `python bot.py` is running; use the `deploy/` service files
+  (Linux) or keep the window open.
 
 ## License
 
