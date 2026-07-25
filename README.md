@@ -10,11 +10,6 @@ says `@everyone` or `@tagall` in a group — public or private.
 - Members without a public @username are tagged with a clickable name link,
   so they still get notified.
 
-**One honest limitation:** Telegram does not let bots download a group's full
-member list — no bot can do this, it is a platform rule. Tagall learns members
-as they post, join, or send `/tagme`. Someone the bot has never seen cannot be
-tagged until they send at least one message.
-
 ---
 
 ## Set it up — complete walkthrough
@@ -142,6 +137,11 @@ Set these as environment variables before starting the bot:
 | `TAGALL_DB` | `members.db` | where the SQLite member list is stored |
 | `TAGALL_ADMINS_ONLY` | off | `1` = only group admins can trigger a tag |
 | `TAGALL_DEFAULT` | `out` | `out` = members must `/tagme` to be tagged; `in` = everyone is tagged unless they `/untagme` |
+
+Note on `TAGALL_DEFAULT=in`: Telegram doesn't let bots download a group's
+member list, so in this mode the bot can only tag members it has seen post
+or join since it was added. With the default opt-in mode this never matters —
+sending `/tagme` is what registers you.
 
 ## Running it 24/7
 
