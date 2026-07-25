@@ -1,5 +1,9 @@
 # Tagall
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![python-telegram-bot](https://img.shields.io/badge/Built%20with-python--telegram--bot-26A5E4.svg)](https://python-telegram-bot.org/)
+
 A simple Telegram bot that mentions **all opted-in group members** when someone
 says `@everyone` or `@tagall` in a group — public or private.
 
